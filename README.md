@@ -34,9 +34,9 @@ If the interface has not been built, please follow the directions below.
 Spectrum-Revealing LU 
 
 ```
-A = randn(10,10);
-mylu = lusol_obj(A,'pivot','TCP', 'rank', l);
-f = 2; maxswaps = 10
+A = randn(8,8);
+mylu = lusol_obj(A,'pivot','TCP', 'rank', 4);
+f = 2; maxswaps = 4
 mylu.srlu(f,maxswaps) % Run Spectrum-Revealing Pivoting
 
 % get the truncated  L and U factors and permuted A
@@ -44,16 +44,14 @@ L = mylu.L();
 U = mylu.U();
 Apq =  mylu.Apq() ; % equivalent to A(mylu.ap,mylu.aq)
 Apq - L*U
-         0         0         0         0         0         0         0         0         0         0
-         0         0         0         0         0         0         0         0         0         0
-         0         0         0         0         0         0         0         0         0         0
-         0         0         0         0         0         0         0         0         0         0
-         0         0         0         0         0         0         0         0         0         0
-         0         0         0         0         0   -0.8686    0.3607   -0.9159   -0.6115   -0.0200
-         0         0         0         0         0   -1.8317    1.2296    0.9397   -0.5426    1.0772
-         0         0         0         0         0   -1.0591    0.2421   -0.6527   -0.0163    0.1474
-         0         0         0         0         0   -0.2696   -0.0049    0.0628    0.8203   -0.5982
-         0         0         0         0         0   -1.0364    0.5426   -1.0774   -1.4577   -1.9327
+         0         0         0         0         0         0         0         0
+         0         0         0         0         0         0         0         0
+         0         0         0         0         0         0         0         0
+         0         0         0         0         0         0         0         0
+         0         0         0         0    0.1619   -0.4802   -0.2641   -0.6268
+         0         0         0         0   -1.0989    1.0314    0.2664    0.8385
+         0         0         0         0    0.7165    0.4630   -0.4342   -1.4023
+         0         0         0         0   -1.9198   -0.3212    0.5953    1.4098
 ```
 
 
