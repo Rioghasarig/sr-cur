@@ -67,7 +67,7 @@ f = 2; maxswaps = l;
 mylu.srlu(f,maxwaps); 
 [C,U,R] = mylu.stable_cur(k); 
 %Compute error
-err = mylu.cur_error(); 
+err = mylu.cur_error(); % Equivalent to norm(mylu.Apq-C*U*R,'fro')/norm(mylu.Apq,'fro') 
 
 ```
 
