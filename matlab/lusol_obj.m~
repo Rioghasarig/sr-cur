@@ -2278,7 +2278,7 @@ classdef lusol_obj < handle
         err = norm(E,'fro')/norm(obj.A,'fro');
     end
     
-    function [err] = cur_error(obj)
+    function [err] = CURerror(obj)
         nrank = obj.stats.nrank;
         C = obj.A(obj.ap(1:end),obj.aq(1:nrank));
         R = obj.A(obj.ap(1:nrank),obj.aq(1:end)); 
