@@ -1,0 +1,20 @@
+# Make settings for mathOpsIntegrated
+CC=/usr/bin/gcc
+CFLAGS=-fexceptions -fPIC -fno-omit-frame-pointer -pthread -D_GNU_SOURCE -DMATLAB_MEX_FILE 
+CLIBS=
+COPTIMFLAGS=-O -DNDEBUG
+CDEBUGFLAGS=-g
+CXX=g++
+CXXFLAGS=-fexceptions -fPIC -fno-omit-frame-pointer -pthread -std=c++11 -D_GNU_SOURCE -DMATLAB_MEX_FILE 
+CXXLIBS=
+CXXOPTIMFLAGS=-O -DNDEBUG
+CXXDEBUGFLAGS=-g
+LDFLAGS=-pthread -Wl,--no-undefined -Wl,-rpath-link,/global/software/sl-7.x86_64/modules/tools/matlab/r2017b/bin/glnxa64 -shared  -L/global/software/sl-7.x86_64/modules/tools/matlab/r2017b/bin/glnxa64 -lmx -lmex -lmat -lm -lstdc++ -Wl,--version-script,/global/software/sl-7.x86_64/modules/tools/matlab/r2017b/extern/lib/glnxa64/mexFunction.map
+LDOPTIMFLAGS=
+LDDEBUGFLAGS=-g
+Arch=glnxa64
+LD=/usr/bin/gcc
+OMPFLAGS=
+OMPLINKFLAGS=
+EMC_COMPILER=gcc
+EMC_CONFIG=optim
