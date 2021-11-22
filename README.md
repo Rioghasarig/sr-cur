@@ -1,2 +1,2 @@
 # sr-cur
-Spectrum-Revealing CUR Decomposition
+1Spectrum-Revealing CUR Decomposition
