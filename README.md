@@ -157,11 +157,4 @@ $ export PATH=/Applications/MATLAB_R2015b.app/bin:$PATH
 The `makefile` may have to be modified on Mac OS X depending on versions of
 Matlab and `gfortran`.
 
-## Authors
 
-* **LUSOL Fortran code**: [Michael Saunders][MS]
-* **Matlab interface**: [Nick Henderson][NWH]
-* **SR-CUR interface** [Onyebuchi Ekenta][OE]
-  [MS]: http://www.stanford.edu/~saunders/
-  [NWH]: http://www.stanford.edu/~nwh/
-  [OE]: https://math.berkeley.edu/~oekenta
