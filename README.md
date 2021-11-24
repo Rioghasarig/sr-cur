@@ -26,6 +26,7 @@ Installation simply requires adding the `matlab` subdirectory to your Matlab
 path.  This may be done with Matlab's [`addpath`][ADDPATH] function.
 
 Please follow the directions below to build the interface
+
   [ADDPATH]: http://www.mathworks.com/help/matlab/ref/addpath.html
 
 ## Usage Examples
