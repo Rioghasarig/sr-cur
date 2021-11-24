@@ -1,5 +1,6 @@
-Spectrum-Revealing CUR (SR-CUR) is a tool for the low rank CUR decomposition of sparse matrices. 
-It is built on top of LUSOL 
+Spectrum-Revealing CUR (SR-CUR) is a tool for the low rank CUR decomposition of sparse matrices. This repository implements the method described [here][CHEN20]:
+
+  [CHEN20]: https://proceedings.mlr.press/v108/chen20a.html
 
 ## LUSOL
 
