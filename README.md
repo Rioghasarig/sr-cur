@@ -25,9 +25,7 @@ The code is distributed under the terms of the MIT License or the BSD License.
 Installation simply requires adding the `matlab` subdirectory to your Matlab
 path.  This may be done with Matlab's [`addpath`][ADDPATH] function.
 
-If the interface has not been built, please follow the directions below.
-
-  [RELEASE]: https://github.com/nwh/lusol/releases
+Please follow the directions below to build the interface
   [ADDPATH]: http://www.mathworks.com/help/matlab/ref/addpath.html
 
 ## Usage Examples
