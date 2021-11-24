@@ -4,7 +4,7 @@ Spectrum-Revealing CUR (SR-CUR) is a tool for the low rank CUR decomposition of 
   [CHEN20]: https://proceedings.mlr.press/v108/chen20a.html
   [BEBOP]: https://math.berkeley.edu/~oekenta/Sparse_CUR_Talk.pdf
 
-
+We make use of the [LUSOL][LUSOL] package to compute the sparse LU factorizations.
 ## LUSOL
 
 [LUSOL][LUSOL] maintains LU factors of a square or rectangular sparse matrix.
