@@ -1,3 +1,6 @@
+[Paper][SRCUR]
+  [SRCUR]: https://math.berkeley.edu/~oekenta/Spectrum_Revealing_CUR__MLDM_.pdf
+
 ## SR-CUR 
 Spectrum-Revealing CUR (SR-CUR) is a tool for the low rank CUR decomposition of sparse matrices. SR-CUR  implements a novel CUR decomposition method that allows it to scale to larger matrices and produce more accurate factorizations than previous methods. It employs a variant of LU pivoting with complete pivoting to select the appropriate rows and columns. In particular, it makes use of a random sketch of the Schur complement to speed up the search for desirable rows and columns. It is highly efficient, outperforming  Matlab's svds by a factor of 10 on large-scale matrices.  For more details see the following [paper][CHEN20] and [presentation][BEBOP] .
   
