@@ -1,7 +1,12 @@
-Spectrum-Revealing CUR (SR-CUR) is a tool for the low rank CUR decomposition of sparse matrices. This repository implements the method described [here][CHEN20]:
+Paper: https://math.berkeley.edu/~oekenta/Spectrum_Revealing_CUR__MLDM_.pdf
 
+## SR-CUR 
+Spectrum-Revealing CUR (SR-CUR) is a tool for the low rank CUR decomposition of sparse matrices. SR-CUR  implements a novel CUR decomposition method that allows it to scale to larger matrices and produce more accurate factorizations than previous methods. It employs a variant of LU pivoting with complete pivoting to select the appropriate rows and columns. In particular, it makes use of a random sketch of the Schur complement to speed up the search for desirable rows and columns. It is highly efficient, outperforming  Matlab's svds by a factor of 10 on large-scale matrices.  For more details see the following [paper][CHEN20] and [presentation][BEBOP] .
+  
   [CHEN20]: https://proceedings.mlr.press/v108/chen20a.html
+  [BEBOP]: https://math.berkeley.edu/~oekenta/Sparse_CUR_Talk.pdf
 
+We make use of the [LUSOL][LUSOL] package to compute the sparse LU factorizations.
 ## LUSOL
 
 [LUSOL][LUSOL] maintains LU factors of a square or rectangular sparse matrix.
@@ -25,9 +30,8 @@ The code is distributed under the terms of the MIT License or the BSD License.
 Installation simply requires adding the `matlab` subdirectory to your Matlab
 path.  This may be done with Matlab's [`addpath`][ADDPATH] function.
 
-If the interface has not been built, please follow the directions below.
+Please follow the directions below to build the interface
 
-  [RELEASE]: https://github.com/nwh/lusol/releases
   [ADDPATH]: http://www.mathworks.com/help/matlab/ref/addpath.html
 
 ## Usage Examples
