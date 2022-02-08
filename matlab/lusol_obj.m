@@ -158,6 +158,7 @@ classdef lusol_obj < handle
     
     Qc = [];
     Bk = [];
+    B = []; 
     Qr = []; 
     
     Rc = [];
@@ -230,7 +231,7 @@ classdef lusol_obj < handle
       in_parse.addParamValue('Ltol2',10.0,@(x) x>=0.0);
       in_parse.addParamValue('small',eps^0.8,@(x) x>=0.0);
       in_parse.addParamValue('Utol1',eps^0.67,@(x) x>=0.0);
-      in_parse.addParamValue('Utol2',eps^0.67,@(x) x>=0.0);
+      in_parse.addParamValue('Utol2',eps,@(x) x>=0.0);
       in_parse.addParamValue('Uspace',3.0,@(x) x>=0.0);
       in_parse.addParamValue('dens1',0.3,@(x) x>=0.0);
       in_parse.addParamValue('dens2',0.5,@(x) x>=0.0);
@@ -940,8 +941,7 @@ classdef lusol_obj < handle
     end
     
     function [L,U] = set_data(obj)
-      nrank = obj.stats.nrank;
-      obj.rank = nrank;
+      nrank = obj.rank; 
       
       % Extract matrices
       L = obj.L0();
@@ -1916,7 +1916,6 @@ classdef lusol_obj < handle
             obj.swapFacCols(a_c,s_c)
                 
         elseif (a_r == nrank+1 && a_c == nrank+1)
-            err = 0;
             return
         else
             
@@ -1954,6 +1953,7 @@ classdef lusol_obj < handle
             obj.S = obj.S + E; 
             
             %Update A11
+            A11 = obj.A11;
             new_col = obj.A(obj.ap(1:nrank),obj.aq(nrank+s_c)); 
             old_col = obj.A11(:,a_c);
             obj.A11(:, a_c) = new_col; 
@@ -2116,15 +2116,16 @@ classdef lusol_obj < handle
 
     end
     
-    function [nswaps,fvals,errors,is,js] = srlu(obj, f, maxswaps)
-        fvals = zeros(1,maxswaps);
+    function [nswaps,fval] = srlu(obj, f, maxswaps)
         nswaps = 0;
         errors = zeros(1,maxswaps);
         is = zeros(1,maxswaps);
         js = zeros(1,maxswaps); 
         nrank = obj.rank;
         for i = 1:maxswaps
-
+             if(mod(i,100) == 0)
+                obj.refactor('pivot', 'TCP', 'nzinit', 5*10^6);
+            end
             [alpha, s_r, s_c] = obj.maxS(); 
             if abs(alpha) < 10^-15
                 break
@@ -2133,7 +2134,7 @@ classdef lusol_obj < handle
             [beta, a_r, a_c] = obj.maxA11inv(alpha,s_r, s_c);
 
             fi = abs(alpha*beta);
-            fvals(i) = fi; 
+            fval= fi; 
             if fi < f
                 break            
             end 
@@ -2141,13 +2142,13 @@ classdef lusol_obj < handle
             det1 = sum(log(abs(udiag)));
             
             obj.swapFac3(a_r,a_c,s_r,s_c,alpha,beta);
-
+            
 
             nswaps = nswaps+1;
             
             udiag = obj.diagU();
             det2 = sum(log(abs(udiag))); 
-            if(det2-det1 < log(f))
+            if(det2-det1 < log(f)-.001)
                 error('lusol:srlu', 'det not increasing enough');
             end
         end
@@ -2220,24 +2221,29 @@ classdef lusol_obj < handle
         C = obj.A(obj.ap(1:end),obj.aq(1:nrank));
         R = obj.A(obj.ap(1:nrank),obj.aq(1:end)); 
         
-        [~,R1] = qr(C,0);
-        Qc = C/R1;
+        [Qc,R1] = qr(C,0);
+        C1 = Qc'*obj.Apq; 
+      %  [C1,R1 ] = qr(C, obj.Apq, 0);
+
         
-        [~,R2] =qr(R',0);
-        %Qr = R'/R2; 
+        %[Qr,R2] =qr(R',0);
+        [C2, R2] = qr(R',C1',0); 
+
         
-        %B1 = Qc'*obj.A(obj.ap,obj.aq)*Qr; 
-        B = R1'\(C'*obj.A(obj.ap,obj.aq)*R')/R2; 
+        %B = Qc'*obj.A(obj.ap,obj.aq)*Qr; 
+        B = C2';
+        obj.B = B; 
+        %B = R1'\(C'*obj.A(obj.ap,obj.aq)*R')/R2; 
         [U0,S0,V0] = svds(B,krank);
-        %Bk = U0*S0*V0'; 
+        Bk = U0*S0*V0'; 
         
         M = R1\(Bk) / R2'; 
-       %obj.Qc = Qc;
+      % obj.Qc = Qc;
         obj.Bk = Bk;
-        %obj.Qr = Qr'; 
+      %  obj.Qr = Qr'; 
         
-        obj.Rc = R1;
-        obj.Rr = R2; 
+        %obj.Rc = R1;
+       % obj.Rr = R2; 
     end
 
     function [diagU] = diagU(obj)
@@ -2280,12 +2286,12 @@ classdef lusol_obj < handle
     
     function [err] = cur_error(obj)
         nrank = obj.stats.nrank;
-        C = obj.A(obj.ap(1:end),obj.aq(1:nrank));
-        R = obj.A(obj.ap(1:nrank),obj.aq(1:end)); 
+        %C = obj.A(obj.ap(1:end),obj.aq(1:nrank));
+       % R = obj.A(obj.ap(1:nrank),obj.aq(1:end)); 
         
         %P1 = obj.Qc'*obj.Apq*obj.Qr'; 
-        P = obj.Rc'\(C'*obj.Apq*R')/obj.Rr; 
-        err = sqrt(1-norm(P,'fro')^2/norm(obj.A,'fro')^2 + norm(P-obj.Bk,'fro')^2/norm(obj.A,'fro')^2);
+        %P = obj.Rc'\(C'*obj.Apq*R')/obj.Rr; 
+        err = sqrt(1-norm(obj.B,'fro')^2/norm(obj.A,'fro')^2 + norm(obj.B-obj.Bk,'fro')^2/norm(obj.A,'fro')^2);
     end
     
 
@@ -2306,9 +2312,9 @@ classdef lusol_obj < handle
         %E = Apq - L*M*U;
         err = 0; 
         n = size(Apq,2);
-        blocks = [1:block_size:n,n];
+        blocks = [0:block_size:n,n];
         for i=1:length(blocks)-1
-            E = Apq(:,blocks(i):blocks(i+1)) - L*U(:,blocks(i):blocks(i+1));
+            E = Apq(:,blocks(i)+1:blocks(i+1)) - L*U(:,blocks(i)+1:blocks(i+1));
             
             err = err+ norm(E,'fro')^2;
         end
@@ -2325,9 +2331,9 @@ classdef lusol_obj < handle
         M = obj.cur(); 
         err = 0; 
         n = size(Apq,2);
-        blocks = [1:block_size:n,n];
+        blocks = [0:block_size:n,n];
         for i=1:length(blocks)-1
-            E = Apq(:,blocks(i):blocks(i+1)) - obj.Qc*obj.Bk*obj.Qr(:,blocks(i):blocks(i+1));
+            E = Apq(:,blocks(i)+1:blocks(i+1)) - L*M*U(:,blocks(i)+1:blocks(i+1));
             
             err = err+ norm(E,'fro')^2;
         end
