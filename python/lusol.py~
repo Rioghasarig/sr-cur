@@ -1,0 +1,7 @@
+from ctypes import cdll
+
+class lusol:
+    liblusol = 0
+    @classmethod
+    def loadlibrary(cls):
+        cls.liblusol = cdll.LoadLibrary("libclusol.so")

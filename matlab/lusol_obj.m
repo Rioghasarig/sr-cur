@@ -67,7 +67,6 @@ classdef lusol_obj < handle
     % object parameters
 
     nzinit = 0; % initial number of non zeros
-    nzinit2 = 0; 
     
     % lusol input parameters
     rank = 0;
@@ -219,7 +218,7 @@ classdef lusol_obj < handle
 
       % storage parameters
       in_parse.addParamValue('nzinit',0,@(x) x>=0);
-      in_parse.addParamValue('nzinit2',0,@(x) x>=0); 
+
       
       % lusol integer parameters
       in_parse.addParamValue('maxcol',5,@(x) x>=0);
@@ -338,7 +337,6 @@ classdef lusol_obj < handle
 
       % storage parameters
       obj.nzinit = options.nzinit;
-      obj.nzinit2 = options.nzinit2;
       
       % lusol integer parameters
       obj.maxcol = options.maxcol;
@@ -774,26 +772,8 @@ classdef lusol_obj < handle
       obj.m = m;
       obj.n = n;
       obj.A = A;
-      [L,U] = obj.set_data();
-      nrank = obj.rank;
-
-      % ===================
-      obj.ap = obj.ap_ptr.Value;
-      obj.aq = obj.aq_ptr.Value;
       
-      obj.A11 = obj.A(obj.ap(1:nrank),obj.aq(1:nrank));
-      obj.A12 = obj.A(obj.ap(1:nrank),obj.aq(nrank+1:end));
-      obj.A21 = obj.A(obj.ap(nrank+1:end),obj.aq(1:nrank));
-      obj.A22 = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+1:end));
-      
-      obj.L21 = L(nrank+1:end,1:nrank);       
-      obj.U12t = U(1:nrank,nrank+1:end)';
-      
-      obj.O = randn(20,obj.m-nrank);
-      OLU = obj.O*obj.L21;
-      OLU = OLU*obj.U12t';
-      obj.S = obj.O*obj.A(obj.ap(nrank+1:end),obj.aq(nrank+1:end)) - ...
-                OLU;
+     
             
             
     end
@@ -855,8 +835,6 @@ classdef lusol_obj < handle
         obj.n_ptr, ...
         obj.nelem_ptr, ...
         obj.nzmax_ptr, ...
-        obj.ap_ptr, ...
-        obj.aq_ptr, ...
         obj.rank_ptr, ...
         obj.luparm_ptr, ...
         obj.parmlu_ptr, ...
@@ -944,8 +922,8 @@ classdef lusol_obj < handle
       nrank = obj.rank; 
       
       % Extract matrices
-      L = obj.L0();
-      U = obj.getU11();
+      L = obj.getL0();
+      U = obj.getU();
 
       
       U11 = U(1:nrank,1:nrank); 
@@ -961,7 +939,7 @@ classdef lusol_obj < handle
       
           
       nelem = lenu + lenl;
-      nzmax = max([2*nelem 10*obj.m 10*obj.n 5*10^6 obj.nzinit2]);
+      nzmax = max([2*nelem 10*obj.m 10*obj.n 5*10^6 obj.nzinit]);
       a = zeros(nzmax,1);
       indc = zeros(nzmax,1);
       indr = zeros(nzmax,1); 
@@ -1019,38 +997,6 @@ classdef lusol_obj < handle
       obj.nzmax_ptr = libpointer(obj.int_ptr_class,nzmax); 
     end
     
-    function [inform nsing depcol] = refactor(obj,varargin)
-      
-      nrank = obj.rank;
-      obj.factorize(obj.A11, varargin{:});
-      [L11,U11] = obj.set_data();
-      if( obj.stats.nrank ~= nrank)
-          error('lusol:refactor','A11 not full rank');
-      end
-        
-      np = obj.ap_ptr.Value; 
-      nq = obj.aq_ptr.Value;
-        
-      obj.ap(1:nrank) = obj.ap(np); 
-      obj.aq(1:nrank) = obj.aq(nq); 
-        
-      obj.A11 = obj.A11(np,nq);
-      obj.A12 = obj.A12(np,:);
-      obj.A21 = obj.A21(:,nq); 
-        
-      obj.L11 = L11;
-      obj.U11 = U11; 
-        
-      obj.U12t = (obj.L11 \ obj.A12)';
-      obj.L21 = obj.A21 / obj.U11; 
-        
-      %obj.O = randn(20,obj.m-nrank);
-      OLU = obj.O*obj.L21;
-      OLU = OLU*obj.U12t';
-      obj.S = obj.O*obj.A(obj.ap(nrank+1:end),obj.aq(nrank+1:end)) - ...
-                OLU;
-                  
-    end
 
     % methods to collect information about matrix and factorization
 
@@ -1199,20 +1145,12 @@ classdef lusol_obj < handle
       iq = double(obj.q_ptr.Value(1:n));
     end
 
-    % methods to get the matrix factors
-    function [L] = L(obj)
-       L = [obj.L11; obj.L21]; 
-    end
-    
-    function [U] = U(obj)
-        U = [obj.U11, obj.U12t'];
-    end
     function [A] = Apq(obj)
         %A = [obj.A11,obj.A12;obj.A21,obj.A22];
         A = obj.A(obj.ap,obj.aq);
     end
     
-    function [U11] = getU11(obj)
+    function [U11] = getU(obj)
       %U  get the upper triangular factor U
       %
       % Extract the U factor from LUSOL data and return as a Matlab sparse
@@ -1288,7 +1226,7 @@ classdef lusol_obj < handle
     
 
     
-    function [L0] = L0(obj)
+    function [L0] = getL0(obj)
       %L0  get the initial lower triangular factor L0
       %
       % Extracts the initial lower triangular factor from the LUSOL data
@@ -1299,9 +1237,9 @@ classdef lusol_obj < handle
       %   mylu.factorize(A);
       %
       % Usage:
-      %   L1 = mylu.get_L0();
-      %   [L2 p] = mylu.get_L0();
-      %   [L2 P] = mylu.get_L0('matrix');
+      %   L1 = mylu.getL0();
+      %   [L2 p] = mylu.getL0();
+      %   [L2 P] = mylu.getL0('matrix');
       %
       % The first call returns L1 as a permuted triangle.  The second and
       % third call will return L2 as a lower triangular matrix with
@@ -1435,732 +1373,12 @@ classdef lusol_obj < handle
             vnorm_ptr);
         inform = inform_ptr.value;       
     end
+    
 
-    function [inform,d,w1] = swapRows(obj, i1,i2)
-        % Swaps rows i1 and nrank+i2 of A and updates the LU factorization
-        % accordingly. Returns a rank one update d*w1' that must be applied
-        % to U21 to complete the update process. 
   
-        nrank = obj.rank; 
-        m = size(obj.A,1);
-        r1 = obj.A11(i1,:)';
-        r2 = obj.A21(i2,:)';
-         r12 = obj.A12(i1,:)';
-%         %r22 = obj.A22(i2,:)';
-         r22 = obj.A(obj.ap(nrank+i2),obj.aq(nrank+1:end))';
-         
-         r = [r1,r2];
-         q = [r12,r22]; 
-        
-        w1 = lusol_obj.vector_process(r2-r1,nrank);
-        v_ptr = libpointer('doublePtr', zeros(nrank,1));
-        w_ptr = libpointer('doublePtr', w1);    
-        wnew_ptr = libpointer('doublePtr', zeros(nrank,1));
-        
-        mode1_ptr = libpointer(obj.int_ptr_class, 4);
-        mode2_ptr = libpointer(obj.int_ptr_class, 0);
-        irep_ptr = libpointer(obj.int_ptr_class, i1);
-        inform_ptr = libpointer(obj.int_ptr_class,0);
-        
-        calllib('libclusol', 'clu8rpr', ...
-            mode1_ptr, ...
-            mode2_ptr, ...
-            obj.m_ptr, ...
-            obj.n_ptr, ...
-            irep_ptr, ...
-            v_ptr, ...
-            w_ptr, ...
-            wnew_ptr, ...
-            obj.nzmax_ptr, ...
-            obj.luparm_ptr, ...
-            obj.parmlu_ptr, ...
-            obj.a_ptr, ...
-            obj.indc_ptr, ...
-            obj.indr_ptr, ...
-            obj.p_ptr, ...
-            obj.q_ptr, ...
-            obj.lenc_ptr, ...
-            obj.lenr_ptr, ...
-            obj.locc_ptr, ...
-            obj.locr_ptr, ...
-            obj.lenlv_ptr, ...
-            obj.li_ptr, ...
-            obj.lj_ptr, ...
-            obj.lv_ptr, ...
-            inform_ptr);
-
-        inform = inform_ptr.value;
-        if( inform == 7)
-            error('lusol:swapRows:lu8rpr', 'Insufficient Storage');
-        end        
-        
-        if (inform == 8)
-            % This really shouldn't ever happen
-            error('lusol:swapRows:lu8rpr', 'irep out of range'); 
-        end
-       
-        c = sparse(v_ptr.value);
-        ei = ((1:m-nrank) == i2)'; 
-        %d = sparse(-obj.L21*c - ei);
-        
-        d = c;     
-        for i = obj.lops:1:-1
-           d(obj.li(i)) = d(obj.li(i)) - d(obj.lj(i));
-        end
-        d = obj.B21*(obj.U11 \ d); 
-        d = -d - ei;
-        % Apply rank one update to U12
-
-        w2 = r22 - r12;
-        %obj.U12 = obj.U12 + c*w2';
-        %obj.U12t = obj.U12t + w2*c';
-        
-        % Update S
-        %obj.S = obj.S - obj.O*obj.L21*c*w2'; 
-         obj.S = obj.S - obj.O*(obj.B21*(obj.U11\ c))*w2';
-%         
-         lenlv = obj.lenlv_ptr.value; 
-         li = double(obj.li_ptr.value);
-         lj = double(obj.lj_ptr.value);
-         lv = obj.lv_ptr.value;
-         lops = sum(lenlv);
-         for i=1:lops
-           obj.L11(:,lj(i)) = ...
-                obj.L11(:,lj(i)) - lv(i)*obj.L11(:,li(i));
-%            obj.L21(:,lj(i)) = ...
-%                 obj.L21(:,lj(i)) - lv(i)*obj.L21(:,li(i));
-
-           %obj.U12(li(i),:) = ... 
-           %         obj.U12(li(i),:) + lv(i)*obj.U12(lj(i),:); 
-            %v0 = obj.U12t(:,li(i)) + lv(i)*obj.U12t(:,lj(i)); 
-            %obj.U12t(:,li(i)) = v0;
-        end
-                 
-         obj.ap([i1, nrank+i2]) =  obj.ap([nrank+i2, i1]);
-         obj.A11(i1,:) = r2;
-         obj.A12(i1,:) = r22;
-         obj.A21(i2,:) = r1;
-         
- 
-         %obj.A22(i2,:) = r12;
-%         
-%         %obj.S = obj.S - (obj.O*ei)*w2';
-         obj.S = obj.S - (obj.O(:,i2))*w2';
-    end
-    
-    function [inform,s,ej] = swapCols(obj, j1,j2)
-        % Swaps columns j1 and nrank+j2 of A and updates the LU factors
-        % accordingly 
-        
-        [~, nrank] = obj.size(); 
-        c1 = obj.A11(:,j1);
-        c2 = obj.A12(:,j2);
-        c = [c1,c2]; 
-        c12 = obj.A21(:,j1);
-        %c22 = obj.A22(:,j2);
-        c22 = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+j2));
-%        d = [c12,c22]; 
-%        u0 = obj.U12(:,j2);
-        %u0 = obj.U12t(j2,:)';
-        u0 = obj.solveL(c2); 
-        
-        %s_old = c22 - obj.L21*u0; 
-        s = c22 - obj.A21*obj.solveU(u0);
-        % Insert column c1 into position j2
-        u = obj.solveL(c1);
-        %obj.U12(:,j2) = u;
-        %obj.U12t(j2,:) = u';
-       % [~,i,v] = find(obj.U12t(j2,:));
-        %obj.U12t(j2,i) = 0;
-        %[~,i,v] = find(u');
-        %obj.U12t(j2,i) = v;
-        % Update S
-        %obj.S(:,j2) = obj.S(:,j2) - obj.O*obj.L21*(u-u0);
-        obj.S(:,j2) = obj.S(:,j2) - obj.O*obj.A21*obj.solveU(u-u0);
-        
-        v = lusol_obj.vector_process(c2(1:nrank),nrank);
-        v_ptr = libpointer('doublePtr', v);
-        w_ptr = libpointer('doublePtr', zeros(nrank,1));
-        
-        mode1_ptr = libpointer(obj.int_ptr_class,1);
-        mode2_ptr = libpointer(obj.int_ptr_class,1);
-        jrep_ptr = libpointer(obj.int_ptr_class,j1);
-        inform_ptr = libpointer(obj.int_ptr_class,0);
-        diag_ptr = libpointer('doublePtr', 0);
-        vnorm_ptr = libpointer('doublePtr', 0); 
-        
-        lenLi = obj.stats.lenL;
-        calllib('libclusol', 'clu8rpc', ...
-            mode1_ptr, ...
-            mode2_ptr, ...
-            obj.m_ptr, ...
-            obj.n_ptr, ...
-            jrep_ptr, ...
-            v_ptr, ...
-            w_ptr, ...
-            obj.nzmax_ptr, ...
-            obj.luparm_ptr, ...
-            obj.parmlu_ptr, ...
-            obj.a_ptr, ...
-            obj.indc_ptr, ...
-            obj.indr_ptr, ...
-            obj.p_ptr, ...
-            obj.q_ptr, ...
-            obj.lenc_ptr, ...
-            obj.lenr_ptr, ...
-            obj.locc_ptr, ...    
-            obj.locr_ptr, ...
-            obj.lv_ptr, ...
-            obj.li_ptr, ...
-            obj.lj_ptr, ...
-            obj.lenlv_ptr, ...
-            inform_ptr, ...
-            diag_ptr, ...
-            vnorm_ptr);
-        inform = inform_ptr.value;
-        
-        if( inform == 7)
-            error('lusol:swapCols', 'Insufficient Storage');
-        end        
-       
-        
-        lenlv = obj.lenlv_ptr.value; 
-        li = double(obj.li_ptr.value);
-        lj = double(obj.lj_ptr.value);
-        lv = obj.lv_ptr.value;
-        lops = sum(lenlv(1:2));
-        
-        obj.lops = lops;
-        obj.li = li;
-        obj.lj = lj;
-        obj.lv = lv; 
-        
-        lenLf = obj.stats.lenL;
-        if lenLf - lenLi ~= lops
-            error('lusol:swapCols', 'Invalid L update');
-        end
-        
-        for i=1:lops
-            obj.L11(:,lj(i)) = ...
-                obj.L11(:,lj(i)) - lv(i)*obj.L11(:,li(i));
-            
-%             obj.L21(:,lj(i)) = ...
-%                 obj.L21(:,lj(i)) - lv(i)*obj.L21(:,li(i));
-%              
-            %obj.U12(li(i),:) = ... 
-            %        obj.U12(li(i),:) + lv(i)*obj.U12(lj(i),:); 
-           % obj.U12t(:,li(i)) = obj.U12t(:,li(i)) + lv(i)*obj.U12t(:,lj(i));
-        end
- 
-         obj.aq([j1 nrank+j2]) = obj.aq([nrank+j2 j1]);        
-         obj.S(:,j2) = obj.S(:,j2) + obj.O*(c12-c22);
-         obj.A11(:,j1) = c2;
-         obj.A12(:,j2) = c1;
-         obj.A21(:,j1) = c22;
-%         obj.A22(:,j2) = c12;
-         ej = ((1:nrank) == j1)';
-    end
     
     
 
-    
-    function [inform] =  swapFac(obj, a_r, a_c, s_r, s_c)
-        nrank = obj.rank;
-        [m,n] = size(obj.A);
-        inform = 0; 
-        obj.U11 = obj.getU11(); 
-        obj.B21 = obj.A21;
-        
-
-        if a_c <= nrank
-            [inform,s,ej] = obj.swapCols(a_c, s_c);
-        end
- 
-        if a_r <= nrank
-            [inform,d,w1] = obj.swapRows(a_r, s_r);
-        end
-           
-        if(obj.stats.nrank ~= nrank || inform == 2)
-           error('lusol:swapFac', 'Singular U11');
-        end
-        
-%         ej1 = ((1:nrank) == a_c)';
-%         ej2 = ((1:n-nrank) == s_c)'; 
-%         ei1 = ((1:nrank) == a_r)';
-%         ei2 = ((1:m-nrank) == s_r)'; 
-%         
-%         E11 = [c(:,2)-c(:,1), ei1]; 
-%         F11 = [ej1'; r(:,2)'-r(:,1)']; 
-%         
-%         E22 = [d(:,1)-d(:,2),ei2]; 
-%         F22 = [ej2'; q(:,1)'-q(:,2)'];
-%         
-%         E12 = [c(:,1)-c(:,2),ei1];
-%         F12 = [ej2' ; q(:,2)'-q(:,1)']; 
-%         
-%         E21 = [d(:,2)-d(:,1), ei2]; 
-%         F21 = [ej1'; r(:,1)'-r(:,2)'];
-%         
-%         
-% 
-%         D12 = obj.solveA(E12);
-%         D12 = D12*F12;
-%         D21 = obj.solveAt(F21')*E21';
-%         M = obj.solveA(E11)*(eye(2) - F11*obj.solveA(E11))^-1*(obj.solveAt(F11')');
-%       
-% 
-%         f1 = obj.O*E22*F22;
-%         f2 = obj.O*A21*M*A12;
-%         f3 = obj.O*D21'*A12; 
-%         f4 = obj.O*A21*D12 ;
-%         f5   = obj.O*E21*F21*D12;
-% 
-%         obj.S = obj.S +f1+ f2 - f3 - f4- f5;
-       if a_c <= nrank
-           l = sparse(obj.solveUt(ej));
-            %obj.L21 = obj.L21 + s*l'; 
-            %obj.S = obj.S - obj.O*s*l'*obj.U12;
-            
-            %obj.S = obj.S - obj.O*s*(obj.U12t*l)';
-            obj.S = obj.S -obj.O*s*(obj.solveLt(l)'*obj.A12); 
-       end
-        
-       if a_r <= nrank
-            l2 = sparse(obj.solveUt(w1)); 
-            %obj.L21 = obj.L21 + d*l2';
-            %obj.S = obj.S - obj.O*d*l2'*obj.U12;
-            
-            %obj.S = obj.S  -obj.O*d*(obj.U12t*l2)';           
-            obj.S = obj.S -obj.O*d*(obj.solveLt(l2)'*obj.A12); 
-       end
-
-
-    end
-    function [err] = updateA12(obj,a_r, a_c, s_r, s_c)
-        nrank = obj.stats.nrank; 
-        m = size(obj.A,1); 
-
-        new_row = obj.A(obj.ap(nrank+s_r), obj.aq(nrank+1:end));
-        old_row = obj.A12(a_r,:);
-        %new_row(s_c) = obj.A(obj.ap(nrank+s_r),obj.aq(a_c)); 
-        w2 = new_row - old_row; 
-        ei1 = ((1:nrank)' == a_r);
-        ei2 = ((1:m-nrank)' == s_r); 
-        %c1  = obj.solveL(ei1);
-        %c2 = - obj.A21*obj.solveU(c1) -ei2; 
-        c2 = -obj.A21*obj.solveA(ei1) - ei2; 
-        obj.S = obj.S + (obj.O*c2)*w2;
-        obj.A12(a_r,:) = new_row; 
-%        obj.A22(s_r,:) = obj.A22(s_r,:) - w2;
-
-        % Update Col s_c
-        new_col = obj.A(obj.ap(1:nrank),obj.aq(a_c));
-        new_col(a_r) = obj.A(obj.ap(nrank+s_r),obj.aq(a_c));
-        v1 = new_col- obj.A12(:,s_c);
-        c1 = obj.solveL(v1); 
-        c2 = - obj.A21*obj.solveU(c1);
-        obj.S(:,s_c) = obj.S(:,s_c) + obj.O*c2; 
-        obj.A12(:,s_c) = new_col;
-        
-%         S = obj.O*(obj.A22 - obj.A21*obj.A11^-1*obj.A12);
-%         err = norm(S-obj.S,'fro')/norm(S,'fro');
-        err = 0;
-    end
-    
-    function [err] = updateA21(obj,a_r,a_c,s_r,s_c)
-        nrank = obj.stats.nrank;
-        n = size(obj.A, 2); 
-
-        %Update row s_r
-        new_row = obj.A(obj.ap(a_r),obj.aq(1:nrank));
-        w1 = new_row - obj.A21(s_r,:); 
-        %l = obj.solveUt(w1'); 
-        %c1 = obj.solveLt(l); 
-        c1 = obj.solveAt(w1');
-        obj.S = obj.S - obj.O(:,s_r)* (c1'*obj.A12); 
-        obj.A21(s_r,:) = new_row; 
-
-         
-        new_col = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+s_c));
-        new_col(s_r) = obj.A(obj.ap(a_r),obj.aq(nrank+s_c));
-        old_col = obj.A21(:,a_c);
-        v2 = new_col - old_col; 
-        ej1 = (1:nrank)'== a_c; 
-        ej2 = (1:n-nrank) == s_c; 
-%         l = obj.solveUt(ej1); 
-%         obj.S = obj.S - (obj.O*v2)*(obj.solveLt(l)'*obj.A12 ) ;        
-        c2 = obj.solveAt(ej1);
-        obj.S = obj.S - (obj.O*v2)*(c2'*obj.A12);
-        obj.S(:,s_c) = obj.S(:,s_c) - obj.O*v2; 
-        obj.A21(:,a_c) = new_col; 
-
-        %obj.A22(:,s_c) = obj.A22(:,s_c) - v2;
-       
-%         S = obj.O*(obj.A22 - obj.A21*obj.A11^-1*obj.A12);
-%         err = norm(S-obj.S,'fro')/norm(S,'fro');
-        err = 0;
-    end
-    
-    function updateA22(obj, a_r, a_c, s_r, s_c)
-        
-        nrank = obj.stats.nrank; 
-   
-           % Update row s_r
-        %new_row= obj.A(obj.ap(a_r),obj.aq(nrank+1:end));
-   
-        %new_row(s_c) = obj.A(obj.ap(a_r),obj.aq(a_c)); 
-        %old_row = obj.A(obj.ap(nrank+s_r),obj.aq(nrank+1:end));
-        %old_row(s_c) = obj.A(obj.ap(nrank+s_r),obj.aq(a_c)); 
-        %w2 = new_row - old_row; 
-        %obj.S = obj.S+ obj.O(:,s_r)*w2; 
-        
-        % Update col s_c
-%         new_col = obj.A(obj.ap(nrank+1:end),obj.aq(a_c)); 
-%         new_col(s_r) = obj.A(obj.ap(a_r),obj.aq(a_c)); 
-%         old_col = obj.A(obj.ap(nrank+1:end), obj.aq(nrank+s_c)); 
-%         old_col(s_r) = obj.A(obj.ap(a_r), obj.aq(nrank+s_c)); 
-%         v2 = new_col - old_col; 
-%         obj.S(:,s_c) = obj.S(:,s_c) + obj.O*v2; 
-        %obj.A22(:,s_c) = new_col; 
-        
-
-       % obj.A22(s_r,:) = new_row; 
-        
-        
-    end
-    
-    function  [err] = updateA11(obj, a_r,a_c,s_r,s_c)
-        nrank = obj.stats.nrank; 
-        new_col = obj.A(obj.ap(1:nrank),obj.aq(nrank+s_c)); 
-        old_col = obj.A11(:,a_c);
-        obj.A11(:, a_c) = new_col; 
-        
-        new_row = obj.A(obj.ap(nrank+s_r),obj.aq(1:nrank));
-        new_row(a_c) = obj.A(obj.ap(nrank+s_r),obj.aq(nrank+s_c)); 
-        old_row = obj.A11(a_r,:);   
-        obj.A11(a_r,:) = new_row; 
-   
-
-        v1 = (new_col - old_col);
-        u1 = new_row - old_row; 
-        ei = ((1:nrank)' == a_r); 
-
-        ej = ((1:nrank) == a_c); 
-
-        
-        cj = obj.solveAt(ej');
-        x1 = obj.solveAt(u1');
-        obj.repcol(a_c,new_col);
-        obj.reprow(a_r,new_row);
-        y1 = obj.solveA(v1);
-        ci = obj.solveA(ei); 
-          %E11 = [new_col - old_col , ei];       
-         %F11 = [ej; new_row-old_row];
-%          vnorm = vecnorm(E11(:,1));
-%          unorm = vecnorm(F11(2,:));
-%          E11(:,1) = E11(:,1)/sqrt(vnorm);
-%          E11(:,2) = E11(:,2)*sqrt(unorm);
-%         F11(2,:) = F11(2,:)/sqrt(unorm);
-%          F11(1,:) = F11(1,:)*sqrt(vnorm);
-%          F11(2,:) = F11(2,:)/sqrt(unorm);
-%          F11(1,:) = F11(1,:)*sqrt(vnorm);
-%         N1 = obj.solveA(E11);
-%         N2 = obj.solveAt(F11')';
-%         C = eye(2) - F11*obj.solveA(E11);
-
-%         M2 = (N1*(C\N2)); 
-%         obj.S = obj.S + obj.O*obj.A21*M2*obj.A12;    
-        y2 = obj.A21*y1;
-        ci2 = obj.A21*ci;
-        cj2 = cj'*obj.A12;
-        x2 = x1'*obj.A12;
-        obj.S = obj.S + (obj.O*y2)*cj2 + (obj.O*ci2)*x2;
-%         S = obj.O*(obj.A22 - obj.A21*obj.A11^-1*obj.A12);
-%         err = norm(S-obj.S,'fro')/norm(S,'fro');
-        err = 0;
-    end
-    
-    function swapFac2(obj, a_r,a_c,s_r,s_c)
-        nrank = obj.stats.nrank;
-        
-        if(a_r ~= nrank+1 && a_c == nrank+1)
-            obj.swapFacRows(a_r,s_r);
-  
-        
-        elseif (a_r == nrank+1 && a_c ~= nrank+1)
-            obj.swapFacCols(a_c,s_c)
-                
-        elseif (a_r == nrank+1 && a_c == nrank+1)
-            err = 0;
-            return
-        else
-            err1 = obj.updateA12(a_r,a_c,s_r,s_c);
-            err2 = obj.updateA21(a_r,a_c,s_r,s_c);
-            %obj.updateA22(a_r,a_c,s_r,s_c);
-            err3 = obj.updateA11(a_r,a_c,s_r,s_c);
-        
-            obj.ap([a_r,nrank+s_r]) = obj.ap([nrank+s_r,a_r]);
-            obj.aq([a_c,nrank+s_c]) = obj.aq([nrank+s_c,a_c]);
-        end
-
-    end
-    
-    function swapFac3(obj, a_r,a_c,s_r,s_c, alpha,beta)
-         [m,n] = size(obj.A); 
-         nrank = obj.stats.nrank;
-        if(a_r ~= nrank+1 && a_c == nrank+1)
-            obj.swapFacRows(a_r,s_r);
-  
-        
-        elseif (a_r == nrank+1 && a_c ~= nrank+1)
-            obj.swapFacCols(a_c,s_c)
-                
-        elseif (a_r == nrank+1 && a_c == nrank+1)
-            return
-        else
-            
-            a2 = obj.A12(:,s_c);
-            a4 = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+s_c));
-            
-            b3= obj.A21(s_r,:)'; 
-            b4 = obj.A(obj.ap(nrank+s_r),obj.aq(nrank+1:end))';
-            ej1 = (1:nrank)' ==a_c;
-            ej2 = (nrank+1:n)' == nrank+s_c;        
-            ei1 = (1:nrank)' == a_r;
-            ei2 = (nrank+1:m)' == nrank+s_r;
-            
-            s11 = -alpha; 
-            s22 = ej1'*obj.solveA(ei1);
-            w = obj.solveAt(b3); 
-            s12 = w(a_r);
-            
-            v = obj.solveA(a2); 
-            s21 = v(a_c);
-            s = [s11, s12; s21, s22]; 
-            v1 = obj.A21*v -a4; 
-            v2 = obj.A21*obj.solveA(ei1) + ei2; 
-            v2_ = v2 + s12/alpha*v1;
-            v2_(s_r) = 1; 
-            
-            
-            w1 = w'*obj.A12 - b4'; 
-            w2  = obj.solveAt(ej1)'*obj.A12 + ej2'; 
-            w2_ = w2 + s21/alpha*w1;
-            w2_(s_c) = 1; 
-            s_ = [alpha, 0 ; 0, beta]; 
-            %E = ((obj.O*[v1,v2])/s)*[w1; w2];
-            E = obj.O*[v1,v2_]*[-1/alpha*w1 ; 1/beta*w2_];
-            obj.S = obj.S + E; 
-            
-            %Update A11
-            A11 = obj.A11;
-            new_col = obj.A(obj.ap(1:nrank),obj.aq(nrank+s_c)); 
-            old_col = obj.A11(:,a_c);
-            obj.A11(:, a_c) = new_col; 
-        
-            new_row = obj.A(obj.ap(nrank+s_r),obj.aq(1:nrank));
-            new_row(a_c) = obj.A(obj.ap(nrank+s_r),obj.aq(nrank+s_c)); 
-            old_row = obj.A11(a_r,:);   
-            obj.A11(a_r,:) = new_row; 
-
-
-            v1 = (new_col - old_col);
-            u1 = new_row - old_row; 
-            ei = ((1:nrank)' == a_r); 
-            ej = ((1:nrank) == a_c); 
-            
-            obj.repcol(a_c,new_col);
-            obj.reprow(a_r,new_row);
-            
-            % Update perm and A12/A21
-            obj.ap([a_r, nrank+s_r]) = obj.ap([nrank+s_r,a_r]);
-            obj.aq([a_c, nrank+s_c]) = obj.aq([nrank+s_c,a_c]);
-            
-            obj.A12(a_r,:) = obj.A(obj.ap(a_r),obj.aq(nrank+1:end));
-            obj.A12(:,s_c) = obj.A(obj.ap(1:nrank),obj.aq(nrank+s_c));
-            
-            obj.A21(:,a_c) = obj.A(obj.ap(nrank+1:end),obj.aq(a_c)); 
-            obj.A21(s_r,:) = obj.A(obj.ap(nrank+s_r),obj.aq(1:nrank)); 
-            
-           end
-    end
-    function swapFacRows(obj,a_r,s_r)
-        nrank = obj.rank; 
-        m = size(obj.A,1);
-        %Update A12
-        new_row = obj.A(obj.ap(nrank+s_r),obj.aq(nrank+1:end)); 
-        w2 = new_row - obj.A12(a_r,:);
-        ei1 = ((1:nrank)' == a_r);
-        ei2 = ((1:m-nrank)' == s_r); 
-        c2 = -obj.A21*obj.solveA(ei1) - ei2; 
-        obj.S = obj.S + obj.O*c2*w2;
-        obj.A12(a_r,:) = new_row; 
-%         obj.A22(s_r,:) = obj.A22(s_r,:) - w2;
-        
-        %Update A21
-        new_row = obj.A(obj.ap(a_r),obj.aq(1:nrank));
-        w1 = new_row - obj.A21(s_r,:);        
-        c1 = obj.solveAt(w1');
-        obj.S = obj.S - obj.O(:,s_r)* (c1'*obj.A12); 
-        obj.A21(s_r,:) = new_row;   
-        
-        %Update A11
-        new_row = obj.A(obj.ap(nrank+s_r),obj.aq(1:nrank));
-        w1 = new_row - obj.A11(a_r,:);
-        ei = ((1:nrank)' == a_r);
-        n1 = obj.solveA(ei);
-        n2 = obj.solveAt(w1'); 
-        c = 1 + w1*n1;
-        obj.S = obj.S + (obj.O*(obj.A21*n1))*c^-1*(n2'*obj.A12);
-        obj.reprow(a_r,new_row);
-        obj.A11(a_r,:) = new_row;
-        obj.ap([a_r,nrank+s_r]) = obj.ap([nrank+s_r,a_r]);
-        
-    end
-    
-    function swapFacCols(obj,a_c,s_c)
-        nrank = obj.rank;
-        
-        %Update A12 
-        new_col = obj.A(obj.ap(1:nrank),obj.aq(a_c));
-        v1 = new_col- obj.A12(:,s_c);
-        c2 = obj.solveA(v1);
-        obj.S(:,s_c) = obj.S(:,s_c) - obj.O*obj.A21*c2; 
-        obj.A12(:,s_c) = new_col;     
-        
-        %Update A21
-        new_col = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+s_c));
-        v2 = new_col - obj.A21(:,a_c); 
-        ej1 = (1:nrank)'== a_c;     
-        c2 = obj.solveAt(ej1);
-        obj.S = obj.S - (obj.O*v2)*(c2'*obj.A12);
-        obj.S(:,s_c) = obj.S(:,s_c) - obj.O*v2; 
-        obj.A21(:,a_c) = new_col; 
-%         obj.A22(:,s_c) = obj.A22(:,s_c) - v2;
-        
-        
-        %Update A11
-        new_col = obj.A(obj.ap(1:nrank),obj.aq(nrank+s_c));
-        v1 = new_col - obj.A11(:,a_c);
-        ej = (1:nrank)' == a_c;
-        n1 = obj.solveA(v1);
-        n2 = obj.solveAt(ej);
-        c = 1 + ej'*n1;
-        obj.S = obj.S + (obj.O*(obj.A21*n1))*c^-1*(n2'*obj.A12);
-        obj.repcol(a_c,new_col);
-        obj.A11(:,a_c) = new_col;
-        obj.aq([a_c,nrank+s_c]) = obj.aq([nrank+s_c,a_c]);       
-        
-    end
-    function [alpha, s_r, s_c] = maxS(obj)
-
-        [~, s_c] = max(sqrt(sum(obj.S.^2)));
-        nrank = obj.stats.nrank;
-        %max_col = obj.A22(:,s_c) - obj.L21*obj.U12(:,s_c);
-        %max_col_old = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+s_c)) - obj.L21*(obj.U12t(s_c,:))';
-        %max_col = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+s_c)) - obj.A21*obj.solveU(obj.U12t(s_c,:)');
-        max_col = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+s_c)) - ...
-                            obj.A21*obj.solveU(obj.solveL(obj.A12(:,s_c)));
-            
-        [~, s_r] = max(abs(max_col));
-        alpha = full(max_col(s_r));
-        
-  
-    end
-
-    
-    function [beta, a_r, a_c] = maxA11inv(obj,alpha, s_r,s_c)
-        %% Estimates the maximum entry of A11^-1 where A11 is the matrix 
-        % formed by rows [1:nrank,nrank+s_r] and cols [1:nrank,nrank+s_c]
-        % of A
-       
-        %% Compute the factorization A11 = L11*U11 
-        % L11 = [L  , 0]    U11 = [U,   u12]
-        %       [l21', 1]          [0, alpha]
-        % L and U are the nrank x nrank submatrix of the 
-        % current truncated LU factorization
-
-        nrank = obj.stats.nrank; 
-        %l21_old = obj.L21(s_r,:)';
-        l21 = obj.solveUt(obj.A21(s_r,:)');
-        %u12 = obj.U12(:,s_c);
-        %u12 = obj.U12t(s_c,:)'; 
-        u12 = obj.solveL(obj.A12(:,s_c));
-
-        %% Compute B =  Omega*A11^-1
-        % [v1,v2] = [Omega1,Omega2]*U11^-1
-        Omega1 = randn(20,nrank); 
-        Omega2 = randn(20,1); 
-        v1 = obj.solveUt(Omega1');
-        v2 = 1/alpha*(Omega2' - u12'*v1)'; 
-        
-        %Compute B = ([v1',v2])/L11;
-        B2 = v2;
-        B1 = obj.solveLt(v1-l21*v2'); 
-        B = [B1', B2];
-        
-        %% Find maximum element
-        [~,a_r] = max(sqrt(sum(B.^2)));
-        e_mcol = zeros(nrank+1,1);
-        e_mcol(a_r,1) = 1;
-       
-        %Compute u = L11\max_col;
-        u1 = obj.solveL(e_mcol(1:nrank)); 
-        u2 = e_mcol(nrank+1) - l21'*u1; 
-        u = [u1 ; u2]; 
-        v2 = u(nrank+1)/alpha;
-        v1 = obj.solveU(u(1:nrank) - v2*u12); 
-        max_col = [v1 ; v2];
-        [~,a_c] = max(abs(max_col)); 
-        beta = full(max_col(a_c));
-
-    end
-    
-    function [nswaps,fval] = srlu(obj, f, maxswaps)
-        nswaps = 0;
-        errors = zeros(1,maxswaps);
-        is = zeros(1,maxswaps);
-        js = zeros(1,maxswaps); 
-        nrank = obj.rank;
-        for i = 1:maxswaps
-             if(mod(i,100) == 0)
-                obj.refactor('pivot', 'TCP', 'nzinit', 5*10^6);
-            end
-            [alpha, s_r, s_c] = obj.maxS(); 
-            if abs(alpha) < 10^-15
-                break
-            end
-      
-            [beta, a_r, a_c] = obj.maxA11inv(alpha,s_r, s_c);
-
-            fi = abs(alpha*beta);
-            fval= fi; 
-            if fi < f
-                break            
-            end 
-            udiag = obj.diagU(); 
-            det1 = sum(log(abs(udiag)));
-            
-            obj.swapFac3(a_r,a_c,s_r,s_c,alpha,beta);
-            
-
-            nswaps = nswaps+1;
-            
-            udiag = obj.diagU();
-            det2 = sum(log(abs(udiag))); 
-            if(det2-det1 < log(f)-.001)
-                error('lusol:srlu', 'det not increasing enough');
-            end
-        end
-       %Compute the submatrices
-       nrank = obj.rank;
-       obj.L11 = obj.mulL(eye(nrank));
-       Linv  = obj.solveL(eye(nrank));
-       obj.U11 = obj.getU11();
-       obj.L21 = obj.A21 / obj.U11; 
-       obj.U12 = Linv*obj.A12; 
-    end
-    
     function [M] = cur(obj)
        %A = [obj.A11, obj.A12 ; obj.A21 , obj.A22];
        A = obj.Apq();
@@ -2195,7 +1413,7 @@ classdef lusol_obj < handle
             
     function [U1,S0,V1] = qrcur(obj)
         nrank = obj.stats.nrank;
-        L = [obj.L11; obj.L21]; U = [obj.getU11(), obj.U12t']; 
+        L = [obj.L11; obj.L21]; U = [obj.getU(), obj.U12t']; 
         m = obj.m;
         n = obj.n;
         apinv = zeros(m,1);aqinv = zeros(n,1); apinv(obj.ap) = 1:m; aqinv(obj.aq) = 1:n; 
@@ -2215,36 +1433,6 @@ classdef lusol_obj < handle
         
     end
     
-    
-    function [C,M,R] = stable_cur(obj, krank)
-        nrank = obj.stats.nrank;
-        C = obj.A(obj.ap(1:end),obj.aq(1:nrank));
-        R = obj.A(obj.ap(1:nrank),obj.aq(1:end)); 
-        
-        [Qc,R1] = qr(C,0);
-        C1 = Qc'*obj.Apq; 
-      %  [C1,R1 ] = qr(C, obj.Apq, 0);
-
-        
-        %[Qr,R2] =qr(R',0);
-        [C2, R2] = qr(R',C1',0); 
-
-        
-        %B = Qc'*obj.A(obj.ap,obj.aq)*Qr; 
-        B = C2';
-        obj.B = B; 
-        %B = R1'\(C'*obj.A(obj.ap,obj.aq)*R')/R2; 
-        [U0,S0,V0] = svds(B,krank);
-        Bk = U0*S0*V0'; 
-        
-        M = R1\(Bk) / R2'; 
-      % obj.Qc = Qc;
-        obj.Bk = Bk;
-      %  obj.Qr = Qr'; 
-        
-        %obj.Rc = R1;
-       % obj.Rr = R2; 
-    end
 
     function [diagU] = diagU(obj)
        [m,n] = obj.size;
@@ -2272,86 +1460,15 @@ classdef lusol_obj < handle
     end 
     
     
-    function [err] = L2error(obj)
-        L = [obj.L11; obj.L21];
-        U = [obj.getU11(), obj.U12];
-        %U = [obj.getU11(), obj.U12];
-        %Apq = [obj.A11,obj.A12; obj.A21, obj.A22];
-        Apq = obj.Apq();
-        %M = (L \ Apq) / U;
-        %E = Apq - L*M*U;
-        E = Apq - L*U;        
-        err = norm(E,'fro')/norm(obj.A,'fro');
-    end
-    
-    function [err] = cur_error(obj)
-        nrank = obj.stats.nrank;
-        %C = obj.A(obj.ap(1:end),obj.aq(1:nrank));
-       % R = obj.A(obj.ap(1:nrank),obj.aq(1:end)); 
-        
-        %P1 = obj.Qc'*obj.Apq*obj.Qr'; 
-        %P = obj.Rc'\(C'*obj.Apq*R')/obj.Rr; 
-        err = sqrt(1-norm(obj.B,'fro')^2/norm(obj.A,'fro')^2 + norm(obj.B-obj.Bk,'fro')^2/norm(obj.A,'fro')^2);
-    end
+
     
 
-    function [angles] = angle_error(obj)
-        L = [obj.L11 ; obj.L21];
-        [Ul,~,~] = svds(L, 5);
-        Apq = obj.Apq(); 
-        [Ua,~,~]= svds(Apq, 5); 
-        angles = svd(Ul'*Ua); 
-    end
-    function [err] = L2errorB(obj,block_size)
-        L = [obj.L11; obj.L21];
-        %U = [obj.getU11(), obj.U12t'];
-        U = [obj.getU11(), obj.U12t'];
-        %Apq = [obj.A11,obj.A12; obj.A21, obj.A22];
-        Apq = obj.Apq();
-        %M = (L \ Apq) / U;
-        %E = Apq - L*M*U;
-        err = 0; 
-        n = size(Apq,2);
-        blocks = [0:block_size:n,n];
-        for i=1:length(blocks)-1
-            E = Apq(:,blocks(i)+1:blocks(i+1)) - L*U(:,blocks(i)+1:blocks(i+1));
-            
-            err = err+ norm(E,'fro')^2;
-        end
-        err = err/norm(obj.A,'fro')^2;
-        err = sqrt(err); 
-        
-    end
-
-    function [err] = CURerrorB(obj,block_size)
-        L = [obj.L11; obj.L21];
-        U = [obj.getU11(), obj.U12t'];
-
-        Apq = obj.Apq();
-        M = obj.cur(); 
-        err = 0; 
-        n = size(Apq,2);
-        blocks = [0:block_size:n,n];
-        for i=1:length(blocks)-1
-            E = Apq(:,blocks(i)+1:blocks(i+1)) - L*M*U(:,blocks(i)+1:blocks(i+1));
-            
-            err = err+ norm(E,'fro')^2;
-        end
-        err = err/norm(obj.A,'fro')^2;
-        err = sqrt(err); 
-        
-    end
    
     function [err] = facerror(obj)
         err = [obj.facerror11(),obj.facerror12(),obj.facerror21()];
         err = full(err);
     end
-    function [err] = facerror11(obj)
-        nrank = obj.rank;
-        U11 = obj.getU11();
-        L11 = obj.mulL(eye(nrank));
-        err = max(max(abs(obj.A11 - L11*U11)));
-    end
+
     
     function [err] = facerror12(obj)
         nrank = obj.stats.nrank;
@@ -2362,17 +1479,12 @@ classdef lusol_obj < handle
  
     function [err] = facerror21(obj)
         n = obj.n; 
-        U11  = obj.getU11();
+        U11  = obj.getU();
         err = max(max(abs(obj.A21 - obj.L21*U11)));
         %err = 1; 
     end
     
-    function [err] = serr(obj)
-        nrank = obj.stats.nrank;
-        obj.A22 = obj.A(obj.ap(nrank+1:end),obj.aq(nrank+1:end));
-        S0 = obj.O*obj.A22 - obj.O*obj.A21*obj.A11^-1*obj.A12; 
-        err = max(max(abs(S0-obj.S)));
-    end
+
     function [e,s,U0] = svd_err(obj,sk,use_m)
         [U0,~,~] = svds(obj.A,sk); 
         [m,n] = size(obj.A); 
@@ -2703,18 +1815,6 @@ classdef lusol_obj < handle
         Y = Y(1:nrank,:);
     end
     
-    function Y = mulL21(obj, X)
-      nrank = obj.stats.nrank;
-      [m, ~] = obj.size;
-      Xr = size(X,1);
-      if Xr ~= nrank
-          error("lusol:mulL21", "X has incorrect size");
-      end
-      
-      X = [X ; zeros(m-nrank,size(X,2))];
-      Y = obj.mul(X,1);
-      Y = Y(nrank+1:end,:); 
-    end
     
     function Y = mulLt(obj,X)
       %MULLT  compute Y = L'*X.
@@ -2723,17 +1823,7 @@ classdef lusol_obj < handle
       Y = obj.mul(X,2);
     end
     
-    function Y = mulL21t(obj, X)
-        nrank = obj.stats.nrank;
-        [m,~] = obj.size; 
-        Xr = size(X,1);
-        if Xr ~= m-nrank
-            error('lusol:mulL21',"X has incorrect size");
-        end
-        X = [zeros(nrank,size(X,2)); X];
-        Y = obj.mul(X,2);
-        Y = Y(1:nrank,:); 
-    end
+
     function Y = mulU(obj,X)
       %MULU  compute Y = U*X.
       %

@@ -98,7 +98,7 @@ contains
   ! 20 Jan 2016: Current version of lusol1.f90.
   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  subroutine lu1fac( m    , n    , nelem, lena , ap, aq,               &
+  subroutine lu1fac( m   , n    , nelem, lena,                         &
                      frank, luparm, parmlu,                            &
                      a    , indc , indr , p    , q     ,               &
                      lenc , lenr , locc , locr ,                       &
@@ -116,7 +116,7 @@ contains
     
     real(rp),      intent(inout) :: parmlu(30), a(lena), w(n)
 
-    integer(ip),   intent(out)   :: inform, ap(m), aq(n)
+    integer(ip),   intent(out)   :: inform
 
     !------------------------------------------------------------------
     ! lu1fac computes a factorization A = L*U, where A is a sparse
@@ -690,47 +690,7 @@ contains
         locr(i) = lu
     end do
 
-    !---------------------------------------------------------------
-    ! Permute rows and columns of U and L
-    !---------------------------------------------------------------
-    
-    ! Fix the ipinv and iqinv
-    do k=1,m
-        ipinv(p(k)) = k
-    end do
 
-    do k=1,n
-        iqinv(q(k)) = k
-    end do
-
-    lenr2 = lenr;
-    locr2 = locr; 
-
-    do k = 1,m
-        i = p(k);
-        lenr(k) = lenr2(i);
-        locr(k) = locr2(i); 
-        ll = locr(k);
-        lm = locr(k) + lenr(k) -1;
-        do l = ll,lm
-            indr(l) = iqinv(indr(l))
-        end do
-    end do
-
-    do l = lena-lenL+1,lena
-        indr(l) = ipinv(indr(l));
-        indc(l) = ipinv(indc(l)); 
-    end do
-    
-    do i = 1,m
-        ap(i) = p(i)
-        p(i) = i
-    end do
-
-    do i = 1,n
-        aq(i) = q(i)
-        q(i) = i
-    end do
     !---------------------------------------------------------------
     ! Save the lengths of the nonempty columns of L,  
     ! and Initialize  locc(j)  for the LU update routines.

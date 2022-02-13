@@ -8,8 +8,6 @@ void clu1fac(
   int64_t* n,
   int64_t* nelem,
   int64_t* lena,
-  int64_t* ap,
-  int64_t* aq, 
   int64_t* frank,
   int64_t* luparm,
   double* parmlu,
