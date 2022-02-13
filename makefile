@@ -116,7 +116,7 @@ F77_OBJ := $(patsubst %.f,%.o,$(filter %.f,$(F77_FILES)))
 # list of F90 code files
 F90_FILES := \
   src/lusol_precision.f90 \
-  src/lusol.f90 src/carrqr.f90 src/updateA.f90 src/paneling.f90
+  src/lusol.f90 
 
 F90_OBJ := $(patsubst %.f90,%.o,$(filter %.f90,$(F90_FILES)))
 F90_MOD := $(patsubst %.f90,%.mod,$(filter %.f90,$(F90_FILES)))

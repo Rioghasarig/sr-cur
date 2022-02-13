@@ -247,14 +247,5 @@ void clu1or2(
   int64_t* lenc,
   int64_t* locc);
 
-void ccarrqr(
-  int32_t* m,
-  int32_t* n,
-  int32_t* blkMax,
-  double* A,
-  int32_t* lda,
-  int32_t* jpvt,
-  double* tau,
-  int32_t* info);
 
 #endif // CLUSOL_H_
