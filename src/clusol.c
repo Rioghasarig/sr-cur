@@ -497,15 +497,3 @@ void clu9clr(
   int64_t* inform) {
   lu9clr_(m, n, lena, luparm, parmlu, a, indc, indr, p, q, lenr, locc, locr, c, lmax, inform); 
 }
-
-void ccarrqr(
-  int32_t* m,
-  int32_t* n,
-  int32_t* blkMax,
-  double* A,
-  int32_t* lda,
-  int32_t* jpvt,
-  double* tau,
-  int32_t* info) {
-  carrqr_(m,n,blkMax,A,lda,jpvt,tau,info);
-}

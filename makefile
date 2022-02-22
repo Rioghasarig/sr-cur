@@ -116,7 +116,7 @@ F77_OBJ := $(patsubst %.f,%.o,$(filter %.f,$(F77_FILES)))
 # list of F90 code files
 F90_FILES := \
   src/lusol_precision.f90 \
-  src/lusol.f90 src/carrqr.f90 src/updateA.f90 src/paneling.f90
+  src/lusol.f90
 
 F90_OBJ := $(patsubst %.f90,%.o,$(filter %.f90,$(F90_FILES)))
 F90_MOD := $(patsubst %.f90,%.mod,$(filter %.f90,$(F90_FILES)))
@@ -140,7 +140,6 @@ $(F77_OBJ) : %.o : %.f
 $(F90_OBJ) : %.o : %.f90
 	$(F90C) $(F90FLAGS) -c $< -o $@
 
-	
 # dependencies for F90 module files
 $(F90_MOD) : %.mod : %.o
 
@@ -166,7 +165,6 @@ src/libclusol.$(LIB_SUFFIX): $(OBJ) $(EXPORT_SYMBOLS)
 $(MATLAB_FILES): src/libclusol.$(LIB_SUFFIX) src/clusol.h
 	cp src/libclusol.$(LIB_SUFFIX) src/clusol.h ./matlab/
 	$(ML) $(MLFLAGS) -r "cd matlab; lusol_build; exit"
-    
 .PHONY: matlab
 matlab: $(MATLAB_FILES)
 
@@ -174,13 +172,17 @@ matlab: $(MATLAB_FILES)
 matlab_test: $(MATLAB_FILES)
 	$(ML) $(MLFLAGS) -r "cd matlab; lusol_test; exit"
 
+.PHONY: python
+python: src/libclusol.$(LIB_SUFFIX)
+	cp src/libclusol.$(LIB_SUFFIX) ./python/
+
 .PHONY: clean
 clean:
 	$(RM) src/*.o
 	$(RM) src/*.$(LIB_SUFFIX)
 	$(RM) src/*.mod
 	$(RM) $(MATLAB_FILES)
-
+	$(RM) python/libclusol.so
 .PHONY: clean_gen
 clean_gen:
 	$(RM) src/clusol.h

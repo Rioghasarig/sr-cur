@@ -119,7 +119,7 @@ classdef srcur_obj < handle
             % formed by rows [1:nrank,nrank+s_r] and cols [1:nrank,nrank+s_c]
             % of A
 
-            %% Compute the factorization A11 = L11*U11 
+         %% Compute the factorization A11 = L11*U11 
             % L11 = [L  , 0]    U11 = [U,   u12]
             %       [l21', 1]          [0, alpha]
             % L and U are the nrank x nrank submatrix of the 
@@ -161,6 +161,44 @@ classdef srcur_obj < handle
 
         end
         
+        function [beta, a_r,a_c] =  maxA11tinv(obj, alpha,s_r,s_c)
+            nrank = obj.rank;
+            Omega = rand(20,nrank+1);
+            
+            a21 = obj.A(obj.ap(nrank+s_r),obj.aq(1:nrank))'; 
+            a12 = obj.A(obj.ap(1:nrank),obj.aq(nrank+s_c));
+            B11 = obj.A(obj.ap([1:nrank,nrank+s_r]),obj.aq([1:nrank,nrank+s_c]));
+            A11 = obj.A(obj.ap([1:nrank]),obj.aq(1:nrank));
+            
+            w21 = obj.corelu.solveAt(a21);
+            w12 = obj.corelu.solveA(a12);
+            
+            X3 = [eye(nrank),w12; zeros(1,nrank),1];
+            X2 = [obj.A(obj.ap([1:nrank]),obj.aq([1:nrank])), zeros(nrank,1);zeros(1,nrank),alpha];
+            X1 = [eye(nrank),zeros(nrank,1); w21',1]; 
+            
+            Y1 = [eye(nrank),-w21;zeros(1,nrank),1];
+            Y3 = [eye(nrank),zeros(nrank,1);-w12',1];
+            
+            O = Omega;
+            Omega(:,nrank+1) = Omega(:,nrank+1) - Omega(:,1:nrank)*w21;
+            Omega(:,1:nrank) = obj.corelu.solveA(Omega(:,1:nrank)')';
+            Omega(:,nrank+1) = Omega(:,nrank+1)/alpha; 
+            Omega(:,1:nrank) = Omega(:,1:nrank) - Omega(:,nrank+1)*w12'; 
+            
+            [~,a_c] =  max(sum(Omega.^2)); 
+            e = zeros(nrank+1,1);
+            e(a_c) = 1; 
+            
+            e(nrank+1) = e(nrank+1)- w12'*e(1:nrank);
+            e(1:nrank) = obj.corelu.solveAt(e(1:nrank)); 
+            e(nrank+1) = e(nrank+1)/alpha;
+            e(1:nrank) = e(1:nrank) - w21*e(nrank+1);
+            
+            [~,a_r] = max(abs(e)); 
+            beta = full(e(a_r)); 
+            
+        end
         function swapFacRows(obj,a_r,s_r)
             nrank = obj.rank; 
             m = size(obj.A,1);
@@ -323,7 +361,7 @@ classdef srcur_obj < handle
                 end
 
                 [beta, a_r, a_c] = obj.maxA11inv(alpha,s_r, s_c);
-
+                [beta2,a_r2,a_c2] = obj.maxA11tinv(alpha,s_r,s_c);
                 fi = abs(alpha*beta);
                 fval= fi; 
                 if fi < f

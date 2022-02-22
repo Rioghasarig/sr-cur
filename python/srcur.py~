@@ -1,0 +1,54 @@
+from lusol import lusol
+import numpy as np
+from scipy.sparse import csc_matrix
+from scipy.sparse.linalg import spsolve
+
+class srcur:
+    def __init__(self,A, rank):
+        self.A = A
+        (m,n) = A.shape
+        self.m = m
+        self.n = n
+
+        trlu = lusol(A, rank)
+        rank = trlu.rank
+        self.rank = rank
+        self.ap = trlu.p-1
+        self.aq = trlu.q-1
+
+        L = trlu.getL0()
+        L = L[np.ix_(self.ap,self.ap[:rank])]
+        U = trlu.getU()
+        U = U[np.ix_(self.ap[:rank],self.aq)]
+
+        L21 = L[np.ix_(range(rank,m),range(rank))]
+        U12 = U[np.ix_(range(rank),range(rank,n))]
+
+        self.A11 = A[np.ix_(self.ap[:rank],self.aq[:rank])]
+        self.A12 = A[np.ix_(self.ap[:rank],self.aq[rank:])]
+        self.A21 = A[np.ix_(self.ap[rank:],self.aq[:rank])]
+        self.A22 = A[np.ix_(self.ap[rank:],self.aq[rank:])]
+        self.O = np.random.rand(20,m-rank)
+
+        OL = csc_matrix.dot(self.O,L21)
+        OLU = csc_matrix.dot(OL,U12)
+        self.S = csc_matrix.dot(self.O,self.A22) - OLU
+        
+        self.corelu = lusol(self.A11, rank)
+
+    def refactor(self):
+        rank = self.rank
+        self.corelu = lusol(A, rank)
+
+        L11 = self.corelu.getL0()
+        U11 = self.corelu.getU()
+
+        U12 = spsolve(L11,self.A12)
+        L21 = spsolve(U11.transpose(),self.A21.transpose())
+
+        OL = csc_matrix.dot(self.O,L21)
+        OLU = csc_matrix.dot(OL,U12)
+        self.S = csc_matrix.dot(self.O,self.A22) - OLU
+
+A = csc_matrix(np.random.rand(10,10))
+mycur = srcur(A,4)
