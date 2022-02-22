@@ -56,7 +56,7 @@ class srcur:
         u = A[self.ap[nrank:],self.aq[nrank+s_c]].todense()
         u = np.ndarray.flatten(np.array(u))
         v1 = self.A12[:,s_c].todense()
-        (v2,_,_) = self.corelu.solveA(v1)
+        v2 = self.corelu.solveA(v1)
         v3 = csc_matrix.dot(self.A21,v2)
         max_col = u - v3
         s_r = np.argmax(np.abs(max_col))
@@ -72,7 +72,23 @@ class srcur:
         w21 = self.corelu.solveAt(a21).todense()
         w12 = self.corelu.solveA(a12).todense()
         Omega[:,nrank] = Omega[:,nrank] - Omega[:,:nrank]@w21
-        
+        Omega[:,:nrank] = obj.corelu.solveA(Omega[:,:nrank].transpose()).transpose()
+        Omega[:,nrank] = Omega[:,nrank]/alpha
+        Omega[:,:nrank] = Omega[:,:nrank]- Omega[:,nrank]@w12.transpose();
+
+        a_c = np.argmax(np.sum(Omega**2,0))
+        e = zeros(nrank+1)
+        e[a_c] = 1
+
+        e[nrank+1] = e[nrank+1] - w12.transpose()@e[:nrank]
+        e[:nrank] = obj.corelu.solveAt(e[:nrank])
+        e[nrank] = e[nrank]/alpha
+        e[:nrank] = e[:nrank] - w21.tranpose()*e[nrank]
+
+        a_r = np.argmax(np.abs(e))
+        beta = e[a_r]
+        return (beta, s_r, s_c)
 A = csc_matrix(np.random.rand(10,10))
 mycur = srcur(A,4)
 (alpha,s_r,s_c) = mycur.maxS()
+mycur.maxA11tinv(alpha,s_r,s_c)

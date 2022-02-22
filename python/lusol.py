@@ -272,16 +272,57 @@ class lusol:
             x = v
         else:
             x = w
-
+        # Potentially use these
         inform = self.luparm[9]
         resid = self.parmlu[19]
-        return (x,inform, resid)
+        return x 
 
+    def  solve(self, B, mode):
+        (m,n) = self.size()
+
+        Br,Bc = B.shape
+
+        Xc = Bc
+        if mode == 1:
+            if Br != m:
+                raise(ValueError('B has incorrect size'))
+            Xr = m
+        elif mode == 2:
+            if Br != m:
+                raise(ValueError('B has incorrect size'))
+            Xr = m
+        elif mode == 3:
+            if Br != m:
+                raise(ValueError('B has incorrect size'))
+            Xr = n
+        elif mode == 4:
+            if Br != n:
+                raise(ValueError('B has incorrect size'))
+            Xr = m
+        elif mode == 5:
+            if Br != m:
+                raise(ValueError('B has incorrect size'))
+            Xr = n
+        elif mode == 6:
+            if Br != n:
+                raise(ValueError('B has incorrect size'))
+            Xr = m
+        else:
+            raise(ValueError('Unrecognized mode'))
+
+        X = np.zeros((Xr,Xc), dtype = np.float64)
+        
+        for j in range(Bc):
+            bcopy = B[:,j].copy()
+            x = self.clu6sol(bcopy,mode)
+            X[:,j] = x
+        return  X
+    
     def solveA(self,b):
-        return self.clu6sol(b,5)
+        return self.solve(b,5)
 
     def solveAt(self,b):
-        return self.clu6osl(b,6)
+        return self.solve(b,6)
     
 
 
