@@ -222,7 +222,7 @@ class lusol:
         # 4 x solves U'x = b
         # 5 x solves A x = b
         # 6 x solves A'x = b
-        lenb = len(b)
+        lenb = b.shape[0]
         m,n = self.size()
         v = np.zeros(m,dtype=np.float64)
         w = np.zeros(n,dtype=np.float64)
@@ -231,14 +231,24 @@ class lusol:
                 raise(ValueError('b has incorrect size'))
             v = b
         elif mode == 2:
+            if lenb != m:
+                raise(ValueError('b has incorrect size'))
             v = b
         elif mode == 3:
+            if lenb != m:
+                raise(ValueError('b has incorrect size'))
             v = b
         elif mode == 4:
+            if lenb != n:
+                raise(ValueError('b has incorrect size'))
             w = b
         elif mode == 5:
+            if lenb != m:
+                raise(ValueError('b has incorrect size'))
             v = b
         elif mode == 6:
+            if lenb != n:
+                raise(ValueError('b has incorrect size'))
             w = b
         else:
             raise(ValueError('Unrecognized Mode'))
@@ -268,7 +278,7 @@ class lusol:
             self.locr_ptr,
             ret_inform_ptr)
 
-        if mode in [1,2,3]:
+        if mode in [1,2,4,6]:
             x = v
         else:
             x = w
@@ -318,11 +328,16 @@ class lusol:
             X[:,j] = x
         return  X
     
-    def solveA(self,b):
-        return self.solve(b,5)
+    def solveAm(self,B):
+        return self.solve(B,5)
 
-    def solveAt(self,b):
-        return self.solve(b,6)
+    def solveAtm(self,B):
+        return self.solve(B,6)
     
+    def solveAv(self,b):
+        return self.clu6sol(b,5)
+    
+    def solveAtv(self,b):
+        return self.clu6sol(b,6)
 
 
