@@ -36,28 +36,6 @@ Please follow the directions below to build the interface
 
 ## Usage Examples
 
-Spectrum-Revealing LU 
-
-```
-A = randn(8,8);
-mylu = lusol_obj(A,'pivot','TCP', 'rank', 4);
-f = 2; maxswaps = 4
-mylu.srlu(f,maxswaps) % Run Spectrum-Revealing Pivoting
-
-% get the truncated  L and U factors and permuted A
-L = mylu.L();
-U = mylu.U();
-Apq =  mylu.Apq() ; % equivalent to A(mylu.ap,mylu.aq)
-Apq - L*U
-         0         0         0         0         0         0         0         0
-         0         0         0         0         0         0         0         0
-         0         0         0         0         0         0         0         0
-         0         0         0         0         0         0         0         0
-         0         0         0         0    0.1619   -0.4802   -0.2641   -0.6268
-         0         0         0         0   -1.0989    1.0314    0.2664    0.8385
-         0         0         0         0    0.7165    0.4630   -0.4342   -1.4023
-         0         0         0         0   -1.9198   -0.3212    0.5953    1.4098
-```
 
 
 Stable-CUR
@@ -67,12 +45,12 @@ Stable-CUR
 % l - oversampling parameter
 % k - rank of the approximation. k <= l  
 
-mylu = lusol_obj(A, 'pivot', 'TRP', 'rank', l); 
+mycur = srcur_obj(A, 'pivot', 'TRP', 'rank', l); 
 f = 2; maxswaps = l;
-mylu.srlu(f,maxwaps); 
+mycur.srlu(f,maxwaps); 
 [C,U,R] = mylu.stable_cur(k); 
 %Compute error
-err = mylu.cur_error(); % Equivalent to norm(mylu.Apq-C*U*R,'fro')/norm(mylu.Apq,'fro') 
+err = mycur.cur_error(); % Equivalent to norm(mylu.Apq-C*U*R,'fro')/norm(mylu.Apq,'fro') 
 
 ```
 
