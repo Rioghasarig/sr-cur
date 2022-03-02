@@ -48,7 +48,7 @@ Stable-CUR
 mycur = srcur_obj(A, 'pivot', 'TRP', 'rank', l); 
 f = 2; maxswaps = l;
 mycur.srlu(f,maxwaps); 
-[C,U,R] = mylu.stable_cur(k); 
+[C,U,R] = mycur.stable_cur(k); 
 %Compute error
 err = mycur.cur_error(); % Equivalent to norm(mylu.Apq-C*U*R,'fro')/norm(mylu.Apq,'fro') 
 
